@@ -22,7 +22,6 @@ console.log("Pengecekan elemen dashboard:", {
 
 const totalOutElement = document.getElementById("totalOut");
 const totalCancelElement = document.getElementById("totalCancel");
-const totalReturnElement = document.getElementById("totalReturn");
 const totalNetElement = document.getElementById("totalNet");
 
 const productCountElement = document.getElementById("productCount");
@@ -73,7 +72,6 @@ function setConnectionStatus(message, connected = false) {
 function resetSummary() {
     totalOutElement.textContent = "0";
     totalCancelElement.textContent = "0";
-    totalReturnElement.textContent = "0";
     totalNetElement.textContent = "0";
     productCountElement.textContent = "0 produk";
     summaryTableBody.replaceChildren();
