@@ -2,7 +2,7 @@
 <html lang="id">
 <head>
     <meta charset="UTF-8">
- 
+
     <meta
         name="viewport"
         content="width=device-width, initial-scale=1.0"
@@ -102,23 +102,11 @@
                 Belum ada data barang keluar pada tanggal ini.
             </div>
 
-            <div class="table-wrapper">
-                <table>
-                    <thead>
-                        <tr>
-                            <th>No.</th>
-                            <th>SKU</th>
-                            <th>Nama Produk</th>
-                            <th>Total Tercatat</th>
-                            <th>Cancel</th>
-                            <th>Total Bersih</th>
-                        </tr>
-                    </thead>
-
-                    <tbody id="summaryTableBody">
-                        <!-- Data diisi otomatis oleh app.js -->
-                    </tbody>
-                </table>
+            <!-- Scrollable card container -->
+            <div class="rekap-scroll-container" id="rekapScrollContainer">
+                <div class="rekap-grid" id="summaryTableBody">
+                    <!-- Data diisi otomatis oleh app.js sebagai cards -->
+                </div>
             </div>
         </section>
 

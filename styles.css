@@ -324,67 +324,101 @@ tbody tr:hover td:nth-child(6) {
     white-space: nowrap;
 }
 
-/* TABLE */
-.table-wrapper {
-    width: 100%;
-    overflow-x: auto;
-    border-radius: 8px;
+/* Scrollable Rekap Cards */
+.rekap-scroll-container {
+    max-height: 420px;
+    overflow-y: auto;
     border: 1px solid var(--border);
-}
-
-table {
-    width: 100%;
-    border-collapse: collapse;
-    min-width: 720px;
-}
-
-thead {
-    background: #F8FAF9;
-}
-
-th {
-    text-align: left;
-    padding: 12px 14px;
-    font-size: 12px;
-    font-weight: 600;
-    color: #52615A;
-    border-bottom: 1px solid var(--border);
-    letter-spacing: 0.3px;
-    text-transform: uppercase;
-}
-
-td {
-    padding: 13px 14px;
-    border-bottom: 1px solid #F0F3F1;
-    font-size: 13.5px;
-    vertical-align: middle;
-}
-
-tbody tr:last-child td {
-    border-bottom: none;
-}
-
-tbody tr:hover {
+    border-radius: 8px;
     background: #FAFCFB;
+    padding: 12px;
 }
 
-td:nth-child(1),
-td:nth-child(4),
-td:nth-child(5),
-td:nth-child(6),
-td:nth-child(7) {
-    font-variant-numeric: tabular-nums;
-    text-align: right;
+.rekap-scroll-container::-webkit-scrollbar {
+    width: 6px;
 }
 
-td:nth-child(4),
-td:nth-child(7) {
-    font-weight: 600;
+.rekap-scroll-container::-webkit-scrollbar-track {
+    background: transparent;
 }
 
-td:nth-child(7) {
-    color: var(--primary-dark);
+.rekap-scroll-container::-webkit-scrollbar-thumb {
+    background: #D1DDD6;
+    border-radius: 3px;
 }
+
+.rekap-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+    gap: 12px;
+}
+
+.rekap-card {
+    background: white;
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    padding: 14px 16px;
+    box-shadow: 0 1px 2px rgba(20, 50, 40, 0.04);
+    transition: box-shadow 0.15s ease;
+}
+
+.rekap-card:hover {
+    box-shadow: var(--shadow-md);
+}
+
+.rekap-card-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-start;
+    gap: 8px;
+    margin-bottom: 10px;
+}
+
+.rekap-card-name {
+    font-weight: 700;
+    font-size: 14px;
+    color: var(--text);
+    line-height: 1.3;
+}
+
+.rekap-card-sku {
+    font-size: 12px;
+    color: var(--muted);
+    font-weight: 500;
+    background: #F2F6F3;
+    padding: 2px 8px;
+    border-radius: 6px;
+    white-space: nowrap;
+}
+
+.rekap-card-stats {
+    display: grid;
+    grid-template-columns: 1fr 1fr 1fr;
+    gap: 8px;
+    margin-top: 8px;
+}
+
+.rekap-stat {
+    text-align: center;
+}
+
+.rekap-stat-label {
+    font-size: 11px;
+    color: var(--muted);
+    font-weight: 500;
+    text-transform: uppercase;
+    letter-spacing: 0.3px;
+}
+
+.rekap-stat-value {
+    font-size: 16px;
+    font-weight: 700;
+    margin-top: 2px;
+}
+
+.rekap-stat-value.out { color: var(--text); }
+.rekap-stat-value.cancel { color: var(--danger); }
+.rekap-stat-value.net { color: var(--primary-dark); background: #F4FAF6; border-radius: 6px; padding: 2px 0; }
 
 /* MESSAGES */
 .message {

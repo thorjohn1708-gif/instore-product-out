@@ -152,30 +152,31 @@ async function loadDailySummary() {
         const fragment = document.createDocumentFragment();
 
         rows.forEach((row, index) => {
-            const tr = document.createElement("tr");
+            const card = document.createElement("div");
+            card.className = "rekap-card";
 
-            const values = [
-                index + 1,
-                row.sku || "-",
-                row.product_name || "Produk tanpa nama",
-                formatNumber(row.total_out),
-                formatNumber(row.total_cancel),
-                // formatNumber(row.total_return),
-                formatNumber(row.net_quantity)
-            ];
+            card.innerHTML = `
+                <div class="rekap-card-header">
+                    <div class="rekap-card-name">${row.product_name || "Produk tanpa nama"}</div>
+                    <div class="rekap-card-sku">${row.sku || "-"}</div>
+                </div>
+                <div class="rekap-card-stats">
+                    <div class="rekap-stat">
+                        <div class="rekap-stat-label">Tercatat</div>
+                        <div class="rekap-stat-value out">${formatNumber(row.total_out)}</div>
+                    </div>
+                    <div class="rekap-stat">
+                        <div class="rekap-stat-label">Cancel</div>
+                        <div class="rekap-stat-value cancel">${formatNumber(row.total_cancel)}</div>
+                    </div>
+                    <div class="rekap-stat">
+                        <div class="rekap-stat-label">Bersih</div>
+                        <div class="rekap-stat-value net">${formatNumber(row.net_quantity)}</div>
+                    </div>
+                </div>
+            `;
 
-            values.forEach((value, cellIndex) => {
-                const td = document.createElement("td");
-                td.textContent = value;
-
-                if (cellIndex === 0) {
-                    td.style.color = "#748079";
-                }
-
-                tr.appendChild(td);
-            });
-
-            fragment.appendChild(tr);
+            fragment.appendChild(card);
         });
 
         summaryTableBody.replaceChildren(fragment);
