@@ -3,27 +3,18 @@ const SUPABASE_URL = "https://qxcarvhrykjxekwnflnt.supabase.co";
 const SUPABASE_ANON_KEY = "sb_publishable_wx3fo3AGxdEHj44c2fZCpQ_foxF2prn";
 
 window.instoreSupabase = window.instoreSupabase ||
-    window.supabase.createClient(
-        SUPABASE_URL,
-        SUPABASE_ANON_KEY
-    );
+    window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
 
 const supabase = window.instoreSupabase;
 
 const filterDate = document.getElementById("filterDate");
+const filterOperator = document.getElementById("filterOperator");
 const refreshButton = document.getElementById("refreshButton");
 const connectionStatus = document.getElementById("connectionStatus");
-
-console.log("Pengecekan elemen dashboard:", {
-    filterDate,
-    refreshButton,
-    connectionStatus
-});
 
 const totalOutElement = document.getElementById("totalOut");
 const totalCancelElement = document.getElementById("totalCancel");
 const totalNetElement = document.getElementById("totalNet");
-
 const productCountElement = document.getElementById("productCount");
 const summaryTableBody = document.getElementById("summaryTableBody");
 
@@ -49,23 +40,15 @@ function getTodayJakarta() {
     }).formatToParts(new Date());
 
     const result = {};
-
-    parts.forEach(part => {
-        result[part.type] = part.value;
-    });
-
+    parts.forEach(part => { result[part.type] = part.value; });
     return `${result.year}-${result.month}-${result.day}`;
 }
 
 function setConnectionStatus(message, connected = false) {
     connectionStatus.textContent = message;
-
     const dot = document.querySelector(".status-dot");
-
     if (dot) {
-        dot.style.backgroundColor = connected
-            ? "#22c55e"
-            : "#f5c451";
+        dot.style.backgroundColor = connected ? "#22c55e" : "#f5c451";
     }
 }
 
@@ -79,11 +62,11 @@ function resetSummary() {
 
 async function loadDailySummary() {
     const selectedDate = filterDate.value;
+    const selectedOperator = filterOperator.value;
 
     if (!selectedDate) return;
 
     const currentRequest = ++requestId;
-
     isLoading = true;
     refreshButton.disabled = true;
 
@@ -93,68 +76,73 @@ async function loadDailySummary() {
     emptyMessage.hidden = true;
 
     try {
-        const { data, error } = await supabase
-            .from("product_out_daily_summary")
-            .select(`
-                work_date,
-                product_id,
-                sku,
-                product_name,
-                total_out,
-                total_cancel,
-                net_quantity
-            `)
-            .eq("work_date", selectedDate)
-            .order("net_quantity", { ascending: false });
+        let query = supabase
+            .from("product_out_events")
+            .select(`sku, product_name, quantity, event_type, operator_id, occurred_at`)
+            .gte("occurred_at", `${selectedDate}T00:00:00+07:00`)
+            .lt("occurred_at", `${selectedDate}T23:59:59.999+07:00`);
 
+        if (selectedOperator) {
+            query = query.eq("operator_id", selectedOperator);
+        }
+
+        const { data, error } = await query;
         if (error) throw error;
 
-        // Abaikan hasil permintaan lama jika ada permintaan yang lebih baru.
-        if (
-            currentRequest !== requestId ||
-            selectedDate !== filterDate.value
-        ) {
+        if (currentRequest !== requestId || selectedDate !== filterDate.value || selectedOperator !== filterOperator.value) {
             return;
         }
 
-        const rows = data || [];
+        const events = data || [];
 
-        if (rows.length === 0) {
+        if (events.length === 0) {
             resetSummary();
             loadingMessage.hidden = true;
             emptyMessage.hidden = false;
-            emptyMessage.textContent =
-                "Belum ada data barang keluar pada tanggal ini.";
+            emptyMessage.textContent = selectedOperator
+                ? "Belum ada data barang keluar untuk operator ini pada tanggal tersebut."
+                : "Belum ada data barang keluar pada tanggal ini.";
             return;
         }
 
-        const totals = rows.reduce((result, row) => {
-            result.out += Number(row.total_out || 0);
-            result.cancel += Number(row.total_cancel || 0);
-            // result.returned += Number(row.total_return || 0);
-            result.net += Number(row.net_quantity || 0);
-            return result;
-        }, {
-            out: 0,
-            cancel: 0,
-            returned: 0,
-            net: 0
+        // Agregasi per SKU
+        const summaryMap = new Map();
+        events.forEach(event => {
+            const key = event.sku || "unknown";
+            if (!summaryMap.has(key)) {
+                summaryMap.set(key, {
+                    sku: event.sku,
+                    product_name: event.product_name,
+                    total_out: 0,
+                    total_cancel: 0,
+                    net_quantity: 0
+                });
+            }
+            const item = summaryMap.get(key);
+            const qty = Number(event.quantity || 0);
+            if (event.event_type === "OUT") item.total_out += qty;
+            else if (event.event_type === "CANCEL") item.total_cancel += qty;
+            item.net_quantity = item.total_out - item.total_cancel;
         });
+
+        const rows = Array.from(summaryMap.values()).sort((a, b) => b.net_quantity - a.net_quantity);
+
+        const totals = rows.reduce((result, row) => {
+            result.out += row.total_out;
+            result.cancel += row.total_cancel;
+            result.net += row.net_quantity;
+            return result;
+        }, { out: 0, cancel: 0, net: 0 });
 
         totalOutElement.textContent = formatNumber(totals.out);
         totalCancelElement.textContent = formatNumber(totals.cancel);
-        // totalReturnElement.textContent = formatNumber(totals.returned);
         totalNetElement.textContent = formatNumber(totals.net);
-
-        productCountElement.textContent =
-            `${formatNumber(rows.length)} produk`;
+        productCountElement.textContent = `${formatNumber(rows.length)} produk`;
 
         const fragment = document.createDocumentFragment();
-
-        rows.forEach((row, index) => {
+        rows.forEach((row) => {
             const card = document.createElement("div");
             card.className = "rekap-card";
-
             card.innerHTML = `
                 <div class="rekap-card-header">
                     <div class="rekap-card-name">${row.product_name || "Produk tanpa nama"}</div>
@@ -175,29 +163,20 @@ async function loadDailySummary() {
                     </div>
                 </div>
             `;
-
             fragment.appendChild(card);
         });
 
         summaryTableBody.replaceChildren(fragment);
-
         loadingMessage.hidden = true;
         emptyMessage.hidden = true;
 
     } catch (error) {
         if (currentRequest !== requestId) return;
-
         console.error("Gagal memuat rekap:", error);
-
         loadingMessage.hidden = true;
         errorMessage.hidden = false;
-        errorMessage.textContent =
-            "Gagal mengambil data. Periksa izin akses Supabase, " +
-            "nama view, dan koneksi internet. Detail: " +
-            (error.message || "Kesalahan tidak diketahui");
-
+        errorMessage.textContent = "Gagal mengambil data. Detail: " + (error.message || "Kesalahan tidak diketahui");
         setConnectionStatus("Gagal memuat data", false);
-
     } finally {
         if (currentRequest === requestId) {
             isLoading = false;
@@ -206,60 +185,31 @@ async function loadDailySummary() {
     }
 }
 
-// Jadwalkan refresh singkat agar beberapa event berdekatan
-// tidak memicu banyak permintaan sekaligus.
 function scheduleRefresh() {
-    if (refreshTimer !== null) {
-        clearTimeout(refreshTimer);
-    }
-
+    if (refreshTimer !== null) clearTimeout(refreshTimer);
     refreshTimer = setTimeout(() => {
         refreshTimer = null;
         loadDailySummary();
     }, 350);
 }
 
-// Dengarkan INSERT, UPDATE, dan DELETE dari tabel event.
 function startRealtime() {
     if (realtimeChannel) {
         supabase.removeChannel(realtimeChannel);
         realtimeChannel = null;
     }
-
     setConnectionStatus("Menghubungkan Realtime...", false);
 
     realtimeChannel = supabase
         .channel("product-out-dashboard-live")
-        .on(
-            "postgres_changes",
-            {
-                event: "*",
-                schema: "public",
-                table: "product_out_events"
-            },
-            payload => {
-                console.log(
-                    "Perubahan event barang keluar:",
-                    payload.eventType
-                );
-
-                // Ambil ulang view supaya rekap mengikuti
-                // hasil perhitungan database terbaru.
-                scheduleRefresh();
-            }
-        )
+        .on("postgres_changes", { event: "*", schema: "public", table: "product_out_events" }, () => {
+            scheduleRefresh();
+        })
         .subscribe(status => {
-            console.log("Status Supabase Realtime:", status);
-
             if (status === "SUBSCRIBED") {
                 setConnectionStatus("Live · Terhubung", true);
                 scheduleRefresh();
-
-            } else if (
-                status === "CHANNEL_ERROR" ||
-                status === "TIMED_OUT" ||
-                status === "CLOSED"
-            ) {
+            } else if (status === "CHANNEL_ERROR" || status === "TIMED_OUT" || status === "CLOSED") {
                 setConnectionStatus("Realtime terputus", false);
             } else {
                 setConnectionStatus("Menghubungkan Realtime...", false);
@@ -267,26 +217,16 @@ function startRealtime() {
         });
 }
 
-refreshButton.addEventListener("click", () => {
-    loadDailySummary();
-});
-
-filterDate.addEventListener("change", () => {
-    loadDailySummary();
-});
+refreshButton.addEventListener("click", () => loadDailySummary());
+filterDate.addEventListener("change", () => loadDailySummary());
+filterOperator.addEventListener("change", () => loadDailySummary());
 
 filterDate.value = getTodayJakarta();
-
-// Muat data awal dan aktifkan listener.
 loadDailySummary();
 startRealtime();
 
-// Bersihkan listener saat halaman ditutup.
 window.addEventListener("pagehide", () => {
-    if (refreshTimer !== null) {
-        clearTimeout(refreshTimer);
-    }
-
+    if (refreshTimer !== null) clearTimeout(refreshTimer);
     if (realtimeChannel) {
         supabase.removeChannel(realtimeChannel);
         realtimeChannel = null;

@@ -2,64 +2,61 @@
 <html lang="id">
 <head>
     <meta charset="UTF-8">
-
-    <meta
-        name="viewport"
-        content="width=device-width, initial-scale=1.0"
-    >
-
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>INstore Product Out Dashboard</title>
-
-    <meta
-        name="description"
-        content="Dashboard monitoring barang keluar gudang INstore"
-    >
-
-    <!-- File CSS dashboard -->
+    <meta name="description" content="Dashboard monitoring barang keluar gudang INstore">
     <link rel="stylesheet" href="styles.css">
 </head>
-
 <body>
     <header class="header">
-    <div class="header-content">
-        <div class="header-left">
-            <img src="instore-logo.png" alt="INstore Logo" class="header-logo">
-            <div>
-                <h1>INstore Product Out</h1>
-                <p>Monitoring Barang Keluar Gudang</p>
+        <div class="header-content">
+            <div class="header-left">
+                <img src="instore-logo.png" alt="INstore Logo" class="header-logo">
+                <div>
+                    <h1>INstore Product Out</h1>
+                    <p>Monitoring Barang Keluar Gudang</p>
+                </div>
+            </div>
+            <div class="connection-status">
+                <span class="status-dot"></span>
+                <span id="connectionStatus">Menghubungkan...</span>
             </div>
         </div>
-
-        <div class="connection-status">
-            <span class="status-dot"></span>
-            <span id="connectionStatus">Menghubungkan...</span>
-        </div>
-    </div>
-</header>
+    </header>
 
     <main class="container">
-
-        <!-- Filter tanggal -->
+        <!-- Filter tanggal & operator -->
         <section class="filter-section">
             <div class="filter-group">
                 <label for="filterDate">Tanggal laporan</label>
                 <input type="date" id="filterDate">
             </div>
 
-            <button id="refreshButton" type="button">
-                Muat Ulang Data
-            </button>
+            <div class="filter-group">
+                <label for="filterOperator">Operator</label>
+                <select id="filterOperator">
+                    <option value="">Semua Operator</option>
+                    <option value="5769da42-d157-404a-a5e3-35ee97f6be53">Ali</option>
+                    <option value="3eb6a787-e354-45be-9503-a4b875facaf2">Dimas</option>
+                    <option value="b30bf17d-f07f-4f49-9832-012ec1f19a3e">Faisal</option>
+                    <option value="684abdd2-55f8-4098-8971-165af38d2555">Iis</option>
+                    <option value="947ebd5e-bfef-4adf-9368-2ada61fb2820">Keyla</option>
+                    <option value="5d09666a-2f91-4565-aade-eecd79e86d3f">Nadila</option>
+                    <option value="8642c323-b118-416f-ae85-e659a24bb8ba">Nisa</option>
+                    <option value="a1249731-d7d6-4c26-91f8-af86c7ae0741">Rizky</option>
+                </select>
+            </div>
+
+            <button id="refreshButton" type="button">Muat Ulang Data</button>
         </section>
 
         <!-- Ringkasan utama -->
         <section class="summary-grid">
-
             <article class="summary-card">
                 <p>Total Unit Tercatat</p>
                 <h2 id="totalOut">0</h2>
                 <span>Unit barang</span>
             </article>
-
             <article class="summary-card">
                 <p>Total Pembatalan</p>
                 <h2 id="totalCancel">0</h2>
@@ -70,53 +67,31 @@
                 <h2 id="totalNet">0</h2>
                 <span>Unit bersih keluar</span>
             </article>
-
         </section>
 
-        <!-- Tabel rekap barang -->
+        <!-- Rekap barang -->
         <section class="table-section">
             <div class="section-heading">
                 <div>
                     <h2>Rekap Barang Keluar</h2>
                     <p>Jumlah setiap produk berdasarkan tanggal yang dipilih.</p>
                 </div>
-
                 <span id="productCount">0 produk</span>
             </div>
 
-            <div id="loadingMessage" class="message">
-                Memuat data...
-            </div>
+            <div id="loadingMessage" class="message">Memuat data...</div>
+            <div id="errorMessage" class="message error-message" hidden></div>
+            <div id="emptyMessage" class="message" hidden>Belum ada data barang keluar pada tanggal ini.</div>
 
-            <div
-                id="errorMessage"
-                class="message error-message"
-                hidden
-            ></div>
-
-            <div
-                id="emptyMessage"
-                class="message"
-                hidden
-            >
-                Belum ada data barang keluar pada tanggal ini.
-            </div>
-
-            <!-- Scrollable card container -->
             <div class="rekap-scroll-container" id="rekapScrollContainer">
-                <div class="rekap-grid" id="summaryTableBody">
-                    <!-- Data diisi otomatis oleh app.js sebagai cards -->
-                </div>
+                <div class="rekap-grid" id="summaryTableBody"></div>
             </div>
         </section>
 
-        <footer class="footer">
-            INstore Product Out Dashboard
-        </footer>
-
+        <footer class="footer">INstore Product Out Dashboard</footer>
     </main>
+
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
     <script src="app.js"></script>
-
 </body>
 </html>
