@@ -62,11 +62,12 @@ function resetSummary() {
 
 async function loadDailySummary() {
     const selectedDate = filterDate.value;
-    const selectedOperator = filterOperator.value;
+    const selectedOperator = filterOperator ? filterOperator.value : "";
 
     if (!selectedDate) return;
 
     const currentRequest = ++requestId;
+
     isLoading = true;
     refreshButton.disabled = true;
 
@@ -89,9 +90,7 @@ async function loadDailySummary() {
         const { data, error } = await query;
         if (error) throw error;
 
-        if (currentRequest !== requestId || selectedDate !== filterDate.value || selectedOperator !== filterOperator.value) {
-            return;
-        }
+        if (currentRequest !== requestId || selectedDate !== filterDate.value) return;
 
         const events = data || [];
 
@@ -105,32 +104,72 @@ async function loadDailySummary() {
             return;
         }
 
-        // Agregasi per SKU
+        // Map operator_id ke nama
+        const operatorMap = {
+            "5769da42-d157-404a-a5e3-35ee97f6be53": "Ali",
+            "3eb6a787-e354-45be-9503-a4b875facaf2": "Dimas",
+            "b30bf17d-f07f-4f49-9832-012ec1f19a3e": "Faisal",
+            "684abdd2-55f8-4098-8971-165af38d2555": "Iis",
+            "947ebd5e-bfef-4adf-9368-2ada61fb2820": "Keyla",
+            "5d09666a-2f91-4565-aade-eecd79e86d3f": "Nadila",
+            "8642c323-b118-416f-ae85-e659a24bb8ba": "Nisa",
+            "a1249731-d7d6-4c26-91f8-af86c7ae0741": "Rizky"
+        };
+
+        // Agregasi per SKU + operator
         const summaryMap = new Map();
+
         events.forEach(event => {
-            const key = event.sku || "unknown";
+            const sku = event.sku || "unknown";
+            const opName = operatorMap[event.operator_id] || "Unknown";
+            const key = `${sku}|${opName}`;
+
             if (!summaryMap.has(key)) {
                 summaryMap.set(key, {
-                    sku: event.sku,
+                    sku,
                     product_name: event.product_name,
+                    operator: opName,
                     total_out: 0,
                     total_cancel: 0,
-                    net_quantity: 0
+                    valid: 0
                 });
             }
             const item = summaryMap.get(key);
             const qty = Number(event.quantity || 0);
             if (event.event_type === "OUT") item.total_out += qty;
             else if (event.event_type === "CANCEL") item.total_cancel += qty;
-            item.net_quantity = item.total_out - item.total_cancel;
+            item.valid = item.total_out - item.total_cancel;
         });
 
-        const rows = Array.from(summaryMap.values()).sort((a, b) => b.net_quantity - a.net_quantity);
+        // Group by SKU untuk tampilan
+        const skuGroups = new Map();
+        for (const item of summaryMap.values()) {
+            if (!skuGroups.has(item.sku)) {
+                skuGroups.set(item.sku, {
+                    sku: item.sku,
+                    product_name: item.product_name,
+                    total_out: 0,
+                    total_cancel: 0,
+                    valid: 0,
+                    operators: []
+                });
+            }
+            const group = skuGroups.get(item.sku);
+            group.total_out += item.total_out;
+            group.total_cancel += item.total_cancel;
+            group.valid += item.valid;
+            if (item.valid > 0) {
+                group.operators.push({ name: item.operator, valid: item.valid });
+            }
+        }
+
+        const rows = Array.from(skuGroups.values())
+            .sort((a, b) => b.valid - a.valid);
 
         const totals = rows.reduce((result, row) => {
             result.out += row.total_out;
             result.cancel += row.total_cancel;
-            result.net += row.net_quantity;
+            result.net += row.valid;
             return result;
         }, { out: 0, cancel: 0, net: 0 });
 
@@ -140,9 +179,16 @@ async function loadDailySummary() {
         productCountElement.textContent = `${formatNumber(rows.length)} produk`;
 
         const fragment = document.createDocumentFragment();
+
         rows.forEach((row) => {
             const card = document.createElement("div");
             card.className = "rekap-card";
+
+            const operatorLines = row.operators
+                .sort((a, b) => b.valid - a.valid)
+                .map(op => `<div class="rekap-operator">• ${op.name}: Valid ${formatNumber(op.valid)}</div>`)
+                .join("");
+
             card.innerHTML = `
                 <div class="rekap-card-header">
                     <div class="rekap-card-name">${row.product_name || "Produk tanpa nama"}</div>
@@ -158,11 +204,13 @@ async function loadDailySummary() {
                         <div class="rekap-stat-value cancel">${formatNumber(row.total_cancel)}</div>
                     </div>
                     <div class="rekap-stat">
-                        <div class="rekap-stat-label">Bersih</div>
-                        <div class="rekap-stat-value net">${formatNumber(row.net_quantity)}</div>
+                        <div class="rekap-stat-label">Valid</div>
+                        <div class="rekap-stat-value net">${formatNumber(row.valid)}</div>
                     </div>
                 </div>
+                ${operatorLines ? `<div class="rekap-operators">${operatorLines}</div>` : ""}
             `;
+
             fragment.appendChild(card);
         });
 
