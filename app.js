@@ -9,6 +9,7 @@ const supabase = window.instoreSupabase;
 
 const filterDate = document.getElementById("filterDate");
 const filterOperator = document.getElementById("filterOperator");
+const filterProduct = document.getElementById("filterProduct");
 const refreshButton = document.getElementById("refreshButton");
 const connectionStatus = document.getElementById("connectionStatus");
 
@@ -27,6 +28,17 @@ let refreshTimer = null;
 let requestId = 0;
 let isLoading = false;
 
+const operatorMap = {
+    "5769da42-d157-404a-a5e3-35ee97f6be53": "Ali",
+    "3eb6a787-e354-45be-9503-a4b875facaf2": "Dimas",
+    "b30bf17d-f07f-4f49-9832-012ec1f19a3e": "Faisal",
+    "684abdd2-55f8-4098-8971-165af38d2555": "Iis",
+    "947ebd5e-bfef-4adf-9368-2ada61fb2820": "Keyla",
+    "5d09666a-2f91-4565-aade-eecd79e86d3f": "Nadila",
+    "8642c323-b118-416f-ae85-e659a24bb8ba": "Nisa",
+    "a1249731-d7d6-4c26-91f8-af86c7ae0741": "Rizky"
+};
+
 function formatNumber(value) {
     return Number(value || 0).toLocaleString("id-ID");
 }
@@ -38,7 +50,6 @@ function getTodayJakarta() {
         month: "2-digit",
         day: "2-digit"
     }).formatToParts(new Date());
-
     const result = {};
     parts.forEach(part => { result[part.type] = part.value; });
     return `${result.year}-${result.month}-${result.day}`;
@@ -47,9 +58,7 @@ function getTodayJakarta() {
 function setConnectionStatus(message, connected = false) {
     connectionStatus.textContent = message;
     const dot = document.querySelector(".status-dot");
-    if (dot) {
-        dot.style.backgroundColor = connected ? "#22c55e" : "#f5c451";
-    }
+    if (dot) dot.style.backgroundColor = connected ? "#22c55e" : "#f5c451";
 }
 
 function resetSummary() {
@@ -63,14 +72,13 @@ function resetSummary() {
 async function loadDailySummary() {
     const selectedDate = filterDate.value;
     const selectedOperator = filterOperator ? filterOperator.value : "";
+    const searchQuery = (filterProduct?.value || "").trim().toLowerCase();
 
     if (!selectedDate) return;
 
     const currentRequest = ++requestId;
-
     isLoading = true;
     refreshButton.disabled = true;
-
     loadingMessage.hidden = false;
     loadingMessage.textContent = "Memuat data...";
     errorMessage.hidden = true;
@@ -89,41 +97,30 @@ async function loadDailySummary() {
 
         const { data, error } = await query;
         if (error) throw error;
+        if (currentRequest !== requestId) return;
 
-        if (currentRequest !== requestId || selectedDate !== filterDate.value) return;
+        let events = data || [];
 
-        const events = data || [];
+        if (searchQuery) {
+            events = events.filter(e =>
+                (e.product_name || "").toLowerCase().includes(searchQuery) ||
+                (e.sku || "").toLowerCase().includes(searchQuery)
+            );
+        }
 
         if (events.length === 0) {
             resetSummary();
             loadingMessage.hidden = true;
             emptyMessage.hidden = false;
-            emptyMessage.textContent = selectedOperator
-                ? "Belum ada data barang keluar untuk operator ini pada tanggal tersebut."
-                : "Belum ada data barang keluar pada tanggal ini.";
+            emptyMessage.textContent = "Tidak ada data yang cocok.";
             return;
         }
 
-        // Map operator_id ke nama
-        const operatorMap = {
-            "5769da42-d157-404a-a5e3-35ee97f6be53": "Ali",
-            "3eb6a787-e354-45be-9503-a4b875facaf2": "Dimas",
-            "b30bf17d-f07f-4f49-9832-012ec1f19a3e": "Faisal",
-            "684abdd2-55f8-4098-8971-165af38d2555": "Iis",
-            "947ebd5e-bfef-4adf-9368-2ada61fb2820": "Keyla",
-            "5d09666a-2f91-4565-aade-eecd79e86d3f": "Nadila",
-            "8642c323-b118-416f-ae85-e659a24bb8ba": "Nisa",
-            "a1249731-d7d6-4c26-91f8-af86c7ae0741": "Rizky"
-        };
-
-        // Agregasi per SKU + operator
         const summaryMap = new Map();
-
         events.forEach(event => {
             const sku = event.sku || "unknown";
             const opName = operatorMap[event.operator_id] || "Unknown";
             const key = `${sku}|${opName}`;
-
             if (!summaryMap.has(key)) {
                 summaryMap.set(key, {
                     sku,
@@ -141,7 +138,6 @@ async function loadDailySummary() {
             item.valid = item.total_out - item.total_cancel;
         });
 
-        // Group by SKU untuk tampilan
         const skuGroups = new Map();
         for (const item of summaryMap.values()) {
             if (!skuGroups.has(item.sku)) {
@@ -163,14 +159,13 @@ async function loadDailySummary() {
             }
         }
 
-        const rows = Array.from(skuGroups.values())
-            .sort((a, b) => b.valid - a.valid);
+        const rows = Array.from(skuGroups.values()).sort((a, b) => b.valid - a.valid);
 
-        const totals = rows.reduce((result, row) => {
-            result.out += row.total_out;
-            result.cancel += row.total_cancel;
-            result.net += row.valid;
-            return result;
+        const totals = rows.reduce((r, row) => {
+            r.out += row.total_out;
+            r.cancel += row.total_cancel;
+            r.net += row.valid;
+            return r;
         }, { out: 0, cancel: 0, net: 0 });
 
         totalOutElement.textContent = formatNumber(totals.out);
@@ -179,11 +174,9 @@ async function loadDailySummary() {
         productCountElement.textContent = `${formatNumber(rows.length)} produk`;
 
         const fragment = document.createDocumentFragment();
-
         rows.forEach((row) => {
             const card = document.createElement("div");
             card.className = "rekap-card";
-
             const operatorLines = row.operators
                 .sort((a, b) => b.valid - a.valid)
                 .map(op => `<div class="rekap-operator">• ${op.name}: Valid ${formatNumber(op.valid)}</div>`)
@@ -210,7 +203,6 @@ async function loadDailySummary() {
                 </div>
                 ${operatorLines ? `<div class="rekap-operators">${operatorLines}</div>` : ""}
             `;
-
             fragment.appendChild(card);
         });
 
@@ -220,10 +212,10 @@ async function loadDailySummary() {
 
     } catch (error) {
         if (currentRequest !== requestId) return;
-        console.error("Gagal memuat rekap:", error);
+        console.error(error);
         loadingMessage.hidden = true;
         errorMessage.hidden = false;
-        errorMessage.textContent = "Gagal mengambil data. Detail: " + (error.message || "Kesalahan tidak diketahui");
+        errorMessage.textContent = "Gagal mengambil data: " + (error.message || "");
         setConnectionStatus("Gagal memuat data", false);
     } finally {
         if (currentRequest === requestId) {
@@ -242,42 +234,23 @@ function scheduleRefresh() {
 }
 
 function startRealtime() {
-    if (realtimeChannel) {
-        supabase.removeChannel(realtimeChannel);
-        realtimeChannel = null;
-    }
+    if (realtimeChannel) supabase.removeChannel(realtimeChannel);
     setConnectionStatus("Menghubungkan Realtime...", false);
-
     realtimeChannel = supabase
         .channel("product-out-dashboard-live")
-        .on("postgres_changes", { event: "*", schema: "public", table: "product_out_events" }, () => {
-            scheduleRefresh();
-        })
+        .on("postgres_changes", { event: "*", schema: "public", table: "product_out_events" }, scheduleRefresh)
         .subscribe(status => {
-            if (status === "SUBSCRIBED") {
-                setConnectionStatus("Live · Terhubung", true);
-                scheduleRefresh();
-            } else if (status === "CHANNEL_ERROR" || status === "TIMED_OUT" || status === "CLOSED") {
-                setConnectionStatus("Realtime terputus", false);
-            } else {
-                setConnectionStatus("Menghubungkan Realtime...", false);
-            }
+            if (status === "SUBSCRIBED") setConnectionStatus("Live · Terhubung", true);
+            else if (["CHANNEL_ERROR", "TIMED_OUT", "CLOSED"].includes(status)) setConnectionStatus("Realtime terputus", false);
         });
 }
 
-refreshButton.addEventListener("click", () => loadDailySummary());
-filterDate.addEventListener("change", () => loadDailySummary());
-filterOperator.addEventListener("change", () => loadDailySummary());
+refreshButton.addEventListener("click", loadDailySummary);
+filterDate.addEventListener("change", loadDailySummary);
+if (filterOperator) filterOperator.addEventListener("change", loadDailySummary);
+if (filterProduct) filterProduct.addEventListener("input", loadDailySummary);
 
 filterDate.value = getTodayJakarta();
 loadDailySummary();
 startRealtime();
-
-window.addEventListener("pagehide", () => {
-    if (refreshTimer !== null) clearTimeout(refreshTimer);
-    if (realtimeChannel) {
-        supabase.removeChannel(realtimeChannel);
-        realtimeChannel = null;
-    }
-});
 })();
