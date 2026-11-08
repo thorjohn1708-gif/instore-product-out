@@ -123,7 +123,38 @@ body {
     font-size: 13px;
 }
 
+.mode-toggle {
+    display: flex;
+    background: #F2F6F3;
+    border-radius: 8px;
+    padding: 3px;
+    gap: 2px;
+    min-height: 40px;
+    align-items: center;
+}
+.mode-btn {
+    border: none;
+    background: transparent;
+    padding: 0 16px;
+    height: 34px;
+    border-radius: 6px;
+    font-size: 13.5px;
+    font-weight: 600;
+    color: var(--muted);
+    cursor: pointer;
+    transition: all 0.15s ease;
+}
+.mode-btn.active {
+    background: white;
+    color: var(--primary-dark);
+    box-shadow: 0 1px 2px rgba(0,0,0,0.06);
+}
+.mode-btn:hover:not(.active) {
+    color: var(--text);
+}
+
 input[type="date"],
+input[type="month"],
 input[type="text"],
 select {
     min-height: 40px;
@@ -144,6 +175,7 @@ select {
 }
 
 input[type="date"]:focus,
+input[type="month"]:focus,
 input[type="text"]:focus,
 select:focus {
     outline: none;
@@ -325,7 +357,7 @@ button:disabled { opacity: 0.6; cursor: not-allowed; }
 @media (max-width: 560px) {
     .header-content { flex-direction: column; align-items: flex-start; }
     .filter-section { flex-direction: column; align-items: stretch; }
-    .filter-group, input[type="date"], input[type="text"], select, button { width: 100%; }
+    .filter-group, input[type="date"], input[type="month"], input[type="text"], select, button { width: 100%; }
     .summary-grid { grid-template-columns: 1fr; }
     .section-heading { flex-direction: column; align-items: flex-start; }
 }

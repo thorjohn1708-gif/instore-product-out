@@ -8,10 +8,17 @@ window.instoreSupabase = window.instoreSupabase ||
 const supabase = window.instoreSupabase;
 
 const filterDate = document.getElementById("filterDate");
+const filterMonth = document.getElementById("filterMonth");
 const filterOperator = document.getElementById("filterOperator");
 const filterProduct = document.getElementById("filterProduct");
 const refreshButton = document.getElementById("refreshButton");
 const connectionStatus = document.getElementById("connectionStatus");
+const dateGroup = document.getElementById("dateGroup");
+const monthGroup = document.getElementById("monthGroup");
+const rekapTitle = document.getElementById("rekapTitle");
+const rekapSubtitle = document.getElementById("rekapSubtitle");
+
+const modeButtons = document.querySelectorAll(".mode-btn");
 
 const totalOutElement = document.getElementById("totalOut");
 const totalCancelElement = document.getElementById("totalCancel");
@@ -27,6 +34,7 @@ let realtimeChannel = null;
 let refreshTimer = null;
 let requestId = 0;
 let isLoading = false;
+let currentMode = "daily"; // "daily" | "monthly"
 
 const operatorMap = {
     "5769da42-d157-404a-a5e3-35ee97f6be53": "Ali",
@@ -55,6 +63,44 @@ function getTodayJakarta() {
     return `${result.year}-${result.month}-${result.day}`;
 }
 
+function getCurrentMonthJakarta() {
+    const today = getTodayJakarta();
+    return today.slice(0, 7); // YYYY-MM
+}
+
+function getMonthRange(monthStr) {
+    // monthStr = "2026-11"
+    const [year, month] = monthStr.split("-").map(Number);
+    const start = `${monthStr}-01T00:00:00+07:00`;
+    // Next month first day
+    const nextMonth = month === 12 ? `${year + 1}-01-01` : `${year}-${String(month + 1).padStart(2, "0")}-01`;
+    const end = `${nextMonth}T00:00:00+07:00`;
+    return { start, end };
+}
+
+function updateModeUI() {
+    const isMonthly = currentMode === "monthly";
+    dateGroup.hidden = isMonthly;
+    monthGroup.hidden = !isMonthly;
+
+    if (isMonthly) {
+        rekapTitle.textContent = "Rekap Barang Keluar Bulanan";
+        rekapSubtitle.textContent = "Jumlah setiap produk berdasarkan bulan yang dipilih.";
+    } else {
+        rekapTitle.textContent = "Rekap Barang Keluar";
+        rekapSubtitle.textContent = "Jumlah setiap produk berdasarkan tanggal yang dipilih.";
+    }
+}
+
+function setMode(mode) {
+    currentMode = mode;
+    modeButtons.forEach(btn => {
+        btn.classList.toggle("active", btn.dataset.mode === mode);
+    });
+    updateModeUI();
+    loadSummary();
+}
+
 function setConnectionStatus(message, connected = false) {
     connectionStatus.textContent = message;
     const dot = document.querySelector(".status-dot");
@@ -69,12 +115,27 @@ function resetSummary() {
     summaryTableBody.replaceChildren();
 }
 
-async function loadDailySummary() {
-    const selectedDate = filterDate.value;
+async function loadSummary() {
     const selectedOperator = filterOperator ? filterOperator.value : "";
     const searchQuery = (filterProduct?.value || "").trim().toLowerCase();
 
-    if (!selectedDate) return;
+    let start, end;
+    let periodLabel = "";
+
+    if (currentMode === "monthly") {
+        const selectedMonth = filterMonth.value;
+        if (!selectedMonth) return;
+        const range = getMonthRange(selectedMonth);
+        start = range.start;
+        end = range.end;
+        periodLabel = "bulan ini";
+    } else {
+        const selectedDate = filterDate.value;
+        if (!selectedDate) return;
+        start = `${selectedDate}T00:00:00+07:00`;
+        end = `${selectedDate}T23:59:59.999+07:00`;
+        periodLabel = "tanggal ini";
+    }
 
     const currentRequest = ++requestId;
     isLoading = true;
@@ -88,8 +149,8 @@ async function loadDailySummary() {
         let query = supabase
             .from("product_out_events")
             .select(`sku, product_name, quantity, event_type, operator_id, occurred_at`)
-            .gte("occurred_at", `${selectedDate}T00:00:00+07:00`)
-            .lt("occurred_at", `${selectedDate}T23:59:59.999+07:00`);
+            .gte("occurred_at", start)
+            .lt("occurred_at", end);
 
         if (selectedOperator) {
             query = query.eq("operator_id", selectedOperator);
@@ -112,7 +173,7 @@ async function loadDailySummary() {
             resetSummary();
             loadingMessage.hidden = true;
             emptyMessage.hidden = false;
-            emptyMessage.textContent = "Tidak ada data yang cocok.";
+            emptyMessage.textContent = `Tidak ada data yang cocok pada ${periodLabel}.`;
             return;
         }
 
@@ -229,7 +290,7 @@ function scheduleRefresh() {
     if (refreshTimer !== null) clearTimeout(refreshTimer);
     refreshTimer = setTimeout(() => {
         refreshTimer = null;
-        loadDailySummary();
+        loadSummary();
     }, 350);
 }
 
@@ -245,12 +306,19 @@ function startRealtime() {
         });
 }
 
-refreshButton.addEventListener("click", loadDailySummary);
-filterDate.addEventListener("change", loadDailySummary);
-if (filterOperator) filterOperator.addEventListener("change", loadDailySummary);
-if (filterProduct) filterProduct.addEventListener("input", loadDailySummary);
+refreshButton.addEventListener("click", loadSummary);
+filterDate.addEventListener("change", loadSummary);
+filterMonth.addEventListener("change", loadSummary);
+if (filterOperator) filterOperator.addEventListener("change", loadSummary);
+if (filterProduct) filterProduct.addEventListener("input", loadSummary);
+
+modeButtons.forEach(btn => {
+    btn.addEventListener("click", () => setMode(btn.dataset.mode));
+});
 
 filterDate.value = getTodayJakarta();
-loadDailySummary();
+filterMonth.value = getCurrentMonthJakarta();
+updateModeUI();
+loadSummary();
 startRealtime();
 })();

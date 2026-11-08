@@ -28,9 +28,23 @@
         <!-- Filter tanggal & operator -->
         <section class="filter-section">
             <div class="filter-group">
+                <label>Tampilan</label>
+                <div class="mode-toggle">
+                    <button type="button" class="mode-btn active" data-mode="daily">Harian</button>
+                    <button type="button" class="mode-btn" data-mode="monthly">Bulanan</button>
+                </div>
+            </div>
+
+            <div class="filter-group" id="dateGroup">
                 <label for="filterDate">Tanggal laporan</label>
                 <input type="date" id="filterDate">
             </div>
+
+            <div class="filter-group" id="monthGroup" hidden>
+                <label for="filterMonth">Bulan laporan</label>
+                <input type="month" id="filterMonth">
+            </div>
+
             <div class="filter-group">
                 <label for="filterProduct">Cari produk / SKU</label>
                 <input type="text" id="filterProduct" placeholder="Ketik nama produk atau SKU...">
@@ -76,8 +90,8 @@
         <section class="table-section">
             <div class="section-heading">
                 <div>
-                    <h2>Rekap Barang Keluar</h2>
-                    <p>Jumlah setiap produk berdasarkan tanggal yang dipilih.</p>
+                    <h2 id="rekapTitle">Rekap Barang Keluar</h2>
+                    <p id="rekapSubtitle">Jumlah setiap produk berdasarkan tanggal yang dipilih.</p>
                 </div>
                 <span id="productCount">0 produk</span>
             </div>
