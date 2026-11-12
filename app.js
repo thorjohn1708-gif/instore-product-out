@@ -146,21 +146,43 @@ async function loadSummary() {
     emptyMessage.hidden = true;
 
     try {
-        let query = supabase
-            .from("product_out_events")
-            .select(`sku, product_name, quantity, event_type, operator_id, occurred_at`)
-            .gte("occurred_at", start)
-            .lt("occurred_at", end);
+        const PAGE_SIZE = 1000;
+        let allEvents = [];
+        let from = 0;
+        let hasMore = true;
 
-        if (selectedOperator) {
-            query = query.eq("operator_id", selectedOperator);
+        loadingMessage.textContent = "Memuat data...";
+
+        while (hasMore) {
+            let query = supabase
+                .from("product_out_events")
+                .select(`sku, product_name, quantity, event_type, operator_id, occurred_at`)
+                .gte("occurred_at", start)
+                .lt("occurred_at", end)
+                .range(from, from + PAGE_SIZE - 1)
+                .order("occurred_at", { ascending: true });
+
+            if (selectedOperator) {
+                query = query.eq("operator_id", selectedOperator);
+            }
+
+            const { data, error } = await query;
+            if (error) throw error;
+            if (currentRequest !== requestId) return;
+
+            const batch = data || [];
+            allEvents = allEvents.concat(batch);
+
+            loadingMessage.textContent = `Memuat data... (${allEvents.length} baris)`;
+
+            if (batch.length < PAGE_SIZE) {
+                hasMore = false;
+            } else {
+                from += PAGE_SIZE;
+            }
         }
 
-        const { data, error } = await query;
-        if (error) throw error;
-        if (currentRequest !== requestId) return;
-
-        let events = data || [];
+        let events = allEvents;
 
         if (searchQuery) {
             events = events.filter(e =>
